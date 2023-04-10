@@ -36,13 +36,13 @@ class HttpServer {
     HttpServer(const std::string &address, int port);
     ~HttpServer();
     void start();
-    void on(const std::string &method, const std::function<void(int, const std::map<std::string, std::string> &)> &handler);
+    void on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &, const std::string &)> &handler);
 
    private:
     std::string address;
     int port;
     int server_fd;
-    std::map<std::pair<std::string, std::string>, std::function<void(int, const std::map<std::string, std::string> &)>> handlers;
+    std::map<std::pair<std::string, std::string>, std::function<void(int, const std::map<std::string, std::string> &, const std::string &)>> handlers;
     void accept_connections();
 };
 
@@ -86,7 +86,7 @@ void HttpServer::start() {
     t.detach();
 }
 
-void HttpServer::on(const std::string &method, const std::function<void(int, const std::map<std::string, std::string> &)> &handler) {
+void HttpServer::on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &, const std::string &)> &handler) {
     handlers[{method, path}] = handler;
 }
 
@@ -145,7 +145,7 @@ void HttpServer::accept_connections() {
 
             auto handler_it = handlers.find({method, path});
             if (handler_it != handlers.end()) {
-                handler_it->second(client_fd, headers);
+                handler_it->second(client_fd, headers, path);
             } else {
                 std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
                 send(client_fd, response.data(), response.size(), 0);
@@ -160,9 +160,7 @@ void HttpServer::accept_connections() {
 int main() {
     HttpServer server("127.0.0.1", 8080);
 
-    server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers) {
-        std::string path = "/";  // The path is hardcoded for this example.
-
+    server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
         std::string filename = path == "/" ? "index.html" : path.substr(1);
         std::ifstream file(filename, std::ios::binary);
 
@@ -180,7 +178,7 @@ int main() {
         }
     });
 
-    server.on("HEAD", "/", [](int client_fd, const std::map<std::string, std::string> &headers) {
+    server.on("HEAD", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
         std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n";
         send(client_fd, response.data(), response.size(), 0);
     });
