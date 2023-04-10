@@ -36,8 +36,7 @@ class HttpServer {
     HttpServer(const std::string &address, int port);
     ~HttpServer();
     void start();
-    void on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &)> &handler);
-    void on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &, const std::string &)> &handler);
+    void on(const std::string &method, const std::function<void(int, const std::map<std::string, std::string> &)> &handler);
 
    private:
     std::string address;
@@ -87,7 +86,7 @@ void HttpServer::start() {
     t.detach();
 }
 
-void HttpServer::on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &)> &handler) {
+void HttpServer::on(const std::string &method, const std::function<void(int, const std::map<std::string, std::string> &)> &handler) {
     handlers[{method, path}] = handler;
 }
 
@@ -161,7 +160,9 @@ void HttpServer::accept_connections() {
 int main() {
     HttpServer server("127.0.0.1", 8080);
 
-    server.on("GET", "", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+    server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers) {
+        std::string path = "/";  // The path is hardcoded for this example.
+
         std::string filename = path == "/" ? "index.html" : path.substr(1);
         std::ifstream file(filename, std::ios::binary);
 
@@ -184,7 +185,7 @@ int main() {
         send(client_fd, response.data(), response.size(), 0);
     });
 
-    server.on("POST", "/", [](int client_fd, const std::map<std::string, std::string> &headers) {
+    server.on("POST", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
         auto content_length_it = headers.find("Content-Length");
         if (content_length_it != headers.end()) {
             int content_length = std::stoi(content_length_it->second);
