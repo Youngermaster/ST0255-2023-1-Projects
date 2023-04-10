@@ -1,3 +1,6 @@
+# Build binaries
+webserver
+
 # Editors IDEs
 .vscode
 .idea
