@@ -38,10 +38,12 @@ void handle_request(int client_socket) {
             response << "Content-Length: " << file.tellg() << "\r\n\r\n";
             file.seekg(0, ios::beg);
             response << file.rdbuf();
+            send(client_socket, response.str().c_str(), response.str().length(), 0);
             write(client_socket, response.str().c_str(), response.str().length());
 
             // Print response code
             cout << "Response code: 200 OK" << endl;
+            cout << response.str() << endl;
         } else {
             // File not found, send 404 response
             stringstream response;
@@ -73,6 +75,7 @@ void handle_request(int client_socket) {
         response << "Content-Type: text/plain\r\n";
         response << "Content-Length: 0\r\n\r\n";
         write(client_socket, response.str().c_str(), response.str().length());
+        cout << response.str() << endl;
     }
 
     // Handle HEAD requests
