@@ -31,7 +31,7 @@ void handle_request(int client_socket) {
         ifstream file(filename);
 
         if (file.good()) {
-            // File exists, send 200 response
+            // File exists, send 200 response with file contents
             stringstream response;
             response << "HTTP/1.1 200 OK\r\n";
             response << "Content-Type: text/html\r\n";
@@ -39,6 +39,9 @@ void handle_request(int client_socket) {
             file.seekg(0, ios::beg);
             response << file.rdbuf();
             write(client_socket, response.str().c_str(), response.str().length());
+
+            // Print response code
+            cout << "Response code: 200 OK" << endl;
         } else {
             // File not found, send 404 response
             stringstream response;
@@ -46,6 +49,9 @@ void handle_request(int client_socket) {
             response << "Content-Type: text/html\r\n";
             response << "Content-Length: 0\r\n\r\n";
             write(client_socket, response.str().c_str(), response.str().length());
+
+            // Print response code
+            cout << "Response code: 404 Not Found" << endl;
         }
     }
 
