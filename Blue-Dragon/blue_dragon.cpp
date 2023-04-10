@@ -14,12 +14,30 @@
 #include <thread>
 #include <vector>
 
+std::string get_content_type(const std::string &filename) {
+    std::string ext = filename.substr(filename.find_last_of(".") + 1);
+
+    if (ext == "html" || ext == "htm") return "text/html";
+    if (ext == "css") return "text/css";
+    if (ext == "js") return "application/javascript";
+    if (ext == "png") return "image/png";
+    if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
+    if (ext == "gif") return "image/gif";
+    if (ext == "ico") return "image/x-icon";
+    if (ext == "json") return "application/json";
+    if (ext == "txt") return "text/plain";
+    if (ext == "xml") return "text/xml";
+
+    return "application/octet-stream";
+}
+
 class HttpServer {
    public:
     HttpServer(const std::string &address, int port);
     ~HttpServer();
     void start();
     void on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &)> &handler);
+    void on(const std::string &method, const std::string &path, const std::function<void(int, const std::map<std::string, std::string> &, const std::string &)> &handler);
 
    private:
     std::string address;
@@ -143,11 +161,24 @@ void HttpServer::accept_connections() {
 int main() {
     HttpServer server("127.0.0.1", 8080);
 
-    server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers) {
-        std::string body = "Hello, World!";
-        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
-        send(client_fd, response.data(), response.size(), 0);
+    server.on("GET", "", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+        std::string filename = path == "/" ? "index.html" : path.substr(1);
+        std::ifstream file(filename, std::ios::binary);
+
+        if (file.is_open()) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            std::string body = buffer.str();
+            std::string content_type = get_content_type(filename);
+
+            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
+            send(client_fd, response.data(), response.size(), 0);
+        } else {
+            std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            send(client_fd, response.data(), response.size(), 0);
+        }
     });
+
     server.on("HEAD", "/", [](int client_fd, const std::map<std::string, std::string> &headers) {
         std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n";
         send(client_fd, response.data(), response.size(), 0);
@@ -157,7 +188,11 @@ int main() {
         auto content_length_it = headers.find("Content-Length");
         if (content_length_it != headers.end()) {
             int content_length = std::stoi(content_length_it->second);
-            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(content_length) + "\r\n\r\n";
+            std::vector<char> buffer(content_length);
+            recv(client_fd, buffer.data(), content_length, 0);
+            std::string body(buffer.begin(), buffer.end());
+
+            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
             send(client_fd, response.data(), response.size(), 0);
         } else {
             std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
