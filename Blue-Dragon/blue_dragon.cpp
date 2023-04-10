@@ -14,6 +14,8 @@
 #include <thread>
 #include <vector>
 
+#define LOG(x) std::cout << x << std::endl
+
 std::string get_content_type(const std::string &filename) {
     std::string ext = filename.substr(filename.find_last_of(".") + 1);
 
@@ -161,7 +163,8 @@ int main() {
     HttpServer server("127.0.0.1", 8080);
 
     server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        std::string filename = path == "/" ? "index.html" : path.substr(1);
+        LOG(path);
+        std::string filename = path == "/" ? "index.html" : path;
         std::ifstream file(filename, std::ios::binary);
 
         if (file.is_open()) {
@@ -172,8 +175,10 @@ int main() {
 
             std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
             send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
         } else {
             std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            LOG(response.data());
             send(client_fd, response.data(), response.size(), 0);
         }
     });
@@ -181,6 +186,7 @@ int main() {
     server.on("HEAD", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
         std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n";
         send(client_fd, response.data(), response.size(), 0);
+        LOG(response.data());
     });
 
     server.on("POST", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
@@ -193,9 +199,11 @@ int main() {
 
             std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
             send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
         } else {
             std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
             send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
         }
     });
 
