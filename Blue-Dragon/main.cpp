@@ -13,7 +13,7 @@
 
 using namespace std;
 const int BUFFER_SIZE = 4096;
-const int PORT = 8080;
+const int PORT = 6969;
 
 void handle_request(int client_socket) {
     char buffer[BUFFER_SIZE] = {0};
