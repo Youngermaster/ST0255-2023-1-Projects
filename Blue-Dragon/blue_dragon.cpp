@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#define REQUEST_TIMEOUT 5  // 5 seconds timeout
 #define LOG(x) std::cout << x << std::endl
 
 std::string get_content_type(const std::string &filename) {
@@ -98,6 +99,16 @@ void HttpServer::accept_connections() {
         int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
         if (client_fd < 0) {
             perror("accept");
+            continue;
+        }
+
+        struct timeval timeout;
+        timeout.tv_sec = REQUEST_TIMEOUT;
+        timeout.tv_usec = 0;
+
+        if (setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+            perror("setsockopt");
+            close(client_fd);
             continue;
         }
 
