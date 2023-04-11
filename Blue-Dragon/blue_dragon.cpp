@@ -13,8 +13,13 @@
 #include <thread>
 #include <vector>
 
+#include "json.hpp"
+using json = nlohmann::json;
+
 #define REQUEST_TIMEOUT 5  // 5 seconds timeout
 #define LOG(x) std::cout << x << std::endl
+#define BUFFER_SIZE 4096
+#define PORT 8080
 
 std::string get_content_type(const std::string &filename) {
     std::string ext = filename.substr(filename.find_last_of(".") + 1);
@@ -46,6 +51,7 @@ class HttpServer {
     int server_fd;
     std::map<std::pair<std::string, std::string>, std::function<void(int, const std::map<std::string, std::string> &, const std::string &)>> handlers;
     void accept_connections();
+    void handle_client(int client_fd);
 };
 
 HttpServer::HttpServer(const std::string &address, int port) : address(address), port(port) {
@@ -113,66 +119,131 @@ void HttpServer::accept_connections() {
         }
 
         std::thread t([this, client_fd]() {
-            char buffer[4096];
-            ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_read < 0) {
-                perror("recv");
-                close(client_fd);
-                return;
-            }
-
-            std::string request(buffer, bytes_read);
-            std::string method, path, version;
-            std::map<std::string, std::string> headers;
-            std::string::size_type pos = request.find(" ");
-            if (pos != std::string::npos) {
-                method = request.substr(0, pos);
-                request.erase(0, pos + 1);
-            }
-
-            pos = request.find(" ");
-            if (pos != std::string::npos) {
-                path = request.substr(0, pos);
-                request.erase(0, pos + 1);
-            }
-
-            pos = request.find("\r\n");
-            if (pos != std::string::npos) {
-                version = request.substr(0, pos);
-                request.erase(0, pos + 2);
-            }
-
-            while ((pos = request.find("\r\n")) != std::string::npos && pos > 0) {
-                std::string header_line = request.substr(0, pos);
-                request.erase(0, pos + 2);
-
-                pos = header_line.find(": ");
-                if (pos != std::string::npos) {
-                    std::string key = header_line.substr(0, pos);
-                    std::string value = header_line.substr(pos + 2);
-                    headers[key] = value;
-                }
-            }
-
-            auto handler_it = handlers.find({method, path});
-            if (handler_it == handlers.end()) {
-                handler_it = handlers.find({method, "*"});
-            }
-            if (handler_it != handlers.end()) {
-                handler_it->second(client_fd, headers, path);
-            } else {
-                std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
-                send(client_fd, response.data(), response.size(), 0);
-            }
-
-            close(client_fd);
+            handle_client(client_fd);
         });
         t.detach();
     }
 }
 
-int main() {
-    HttpServer server("127.0.0.1", 8080);
+void HttpServer::handle_client(int client_fd) {
+    char buffer[BUFFER_SIZE];
+    std::string request_headers;
+
+    ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes_read <= 0) {
+        perror("recv");
+        close(client_fd);
+        return;
+    }
+    request_headers.append(buffer, bytes_read);
+
+    std::string method, path, version;
+    std::map<std::string, std::string> headers;
+    std::string::size_type pos = request_headers.find(" ");
+    if (pos != std::string::npos) {
+        method = request_headers.substr(0, pos);
+        request_headers.erase(0, pos + 1);
+    }
+
+    pos = request_headers.find(" ");
+    if (pos != std::string::npos) {
+        path = request_headers.substr(0, pos);
+        request_headers.erase(0, pos + 1);
+    }
+
+    pos = request_headers.find("\r\n");
+    if (pos != std::string::npos) {
+        version = request_headers.substr(0, pos);
+        request_headers.erase(0, pos + 2);
+    }
+
+    // Log the method and path
+    LOG("Method: " + method + ", Path: " + path);
+
+    while ((pos = request_headers.find("\r\n")) != std::string::npos && pos > 0) {
+        std::string header_line = request_headers.substr(0, pos);
+        request_headers.erase(0, pos + 2);
+
+        pos = header_line.find(":");
+        if (pos != std::string::npos) {
+            std::string key = header_line.substr(0, pos);
+            std::string value = header_line.substr(pos + 1);
+            // Trim leading and trailing spaces
+            value.erase(0, value.find_first_not_of(" "));
+            value.erase(value.find_last_not_of(" ") + 1);
+            headers[key] = value;
+        }
+    }
+
+    auto handler_it = handlers.find({method, path});
+    if (handler_it == handlers.end()) {
+        handler_it = handlers.find({method, "*"});
+        if (handler_it == handlers.end()) {
+            handler_it = handlers.find({"*", path});
+        }
+    }
+    if (handler_it != handlers.end()) {
+        handler_it->second(client_fd, headers, path);
+    } else {
+        std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+        send(client_fd, response.data(), response.size(), 0);
+    }
+
+    close(client_fd);
+}
+
+void post_handler(int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+    auto content_length_it = headers.find("Content-Length");
+    ssize_t content_length = 0;
+    if (content_length_it != headers.end()) {
+        content_length = std::stoi(content_length_it->second);
+    } else {
+        std::string response = "HTTP/1.1 411 Length Required\r\nContent-Length: 0\r\n\r\n";
+        send(client_fd, response.data(), response.size(), 0);
+        LOG(response.data());
+        return;
+    }
+
+    std::vector<char> buffer(content_length);
+    ssize_t bytes_received = 0;
+    while (bytes_received < content_length) {
+        ssize_t result = recv(client_fd, buffer.data() + bytes_received, content_length - bytes_received, 0);
+        if (result < 0) {
+            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+            send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
+            return;
+        }
+        bytes_received += result;
+    }
+
+    std::string body(buffer.begin(), buffer.begin() + bytes_received);
+    // Log the received body
+    LOG("Received body: ");
+    LOG(body);
+    // Process the POST request body
+    try {
+        json request_json = json::parse(body);
+        std::string name = request_json["name"];
+
+        json response_json;
+        response_json["message"] = "Hello, " + name;
+
+        std::string response_body = response_json.dump();
+        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(response_body.size()) + "\r\n\r\n" + response_body;
+        send(client_fd, response.data(), response.size(), 0);
+        LOG(response.data());
+    } catch (const std::exception &e) {
+        std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+        send(client_fd, response.data(), response.size(), 0);
+        LOG(response.data());
+    }
+}
+
+int main(int argc, char const *argv[]) {
+    HttpServer server("127.0.0.1", PORT);
+
+    server.on("POST", "/api/name", post_handler);
 
     server.on("GET", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
         std::string filename = path == "/" ? "index.html" : path.substr(1);
@@ -211,24 +282,6 @@ int main() {
             std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
             LOG(response.data());
             send(client_fd, response.data(), response.size(), 0);
-        }
-    });
-
-    server.on("POST", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        auto content_length_it = headers.find("Content-Length");
-        if (content_length_it != headers.end()) {
-            int content_length = std::stoi(content_length_it->second);
-            std::vector<char> buffer(content_length);
-            recv(client_fd, buffer.data(), content_length, 0);
-            std::string body(buffer.begin(), buffer.end());
-
-            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
-            send(client_fd, response.data(), response.size(), 0);
-            LOG(response.data());
-        } else {
-            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-            send(client_fd, response.data(), response.size(), 0);
-            LOG(response.data());
         }
     });
 
