@@ -1,4 +1,3 @@
-// main.cpp
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -13,6 +12,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#define LOG(x) std::cout << x << std::endl
 
 std::string get_content_type(const std::string &filename) {
     std::string ext = filename.substr(filename.find_last_of(".") + 1);
@@ -113,7 +114,6 @@ void HttpServer::accept_connections() {
             std::string method, path, version;
             std::map<std::string, std::string> headers;
             std::string::size_type pos = request.find(" ");
-
             if (pos != std::string::npos) {
                 method = request.substr(0, pos);
                 request.erase(0, pos + 1);
@@ -144,6 +144,9 @@ void HttpServer::accept_connections() {
             }
 
             auto handler_it = handlers.find({method, path});
+            if (handler_it == handlers.end()) {
+                handler_it = handlers.find({method, "*"});
+            }
             if (handler_it != handlers.end()) {
                 handler_it->second(client_fd, headers, path);
             } else {
@@ -160,7 +163,7 @@ void HttpServer::accept_connections() {
 int main() {
     HttpServer server("127.0.0.1", 8080);
 
-    server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+    server.on("GET", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
         std::string filename = path == "/" ? "index.html" : path.substr(1);
         std::ifstream file(filename, std::ios::binary);
 
@@ -172,15 +175,32 @@ int main() {
 
             std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
             send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
         } else {
             std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            LOG(response.data());
             send(client_fd, response.data(), response.size(), 0);
         }
     });
 
-    server.on("HEAD", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n";
-        send(client_fd, response.data(), response.size(), 0);
+    server.on("HEAD", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+        std::string filename = path == "/" ? "index.html" : path.substr(1);
+        std::ifstream file(filename, std::ios::binary);
+
+        if (file.is_open()) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            std::string body = buffer.str();
+            std::string content_type = get_content_type(filename);
+
+            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n";
+            send(client_fd, response.data(), response.size() - body.size(), 0);
+            LOG(response.data());
+        } else {
+            std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            LOG(response.data());
+            send(client_fd, response.data(), response.size(), 0);
+        }
     });
 
     server.on("POST", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
@@ -193,15 +213,17 @@ int main() {
 
             std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
             send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
         } else {
             std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
             send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
         }
     });
 
     server.start();
 
-    std::cout << "Server started at http://127.0.0.1:8080" << std::endl;
+    LOG("Server started at http://127.0.0.1:8080");
 
     while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
