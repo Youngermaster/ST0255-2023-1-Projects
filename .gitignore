@@ -2,6 +2,7 @@
 json.hpp
 
 # Build binaries
+build
 webserver
 
 # Editors IDEs
