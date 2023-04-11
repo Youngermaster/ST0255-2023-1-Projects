@@ -32,7 +32,7 @@ for learning porpuses.
 - [x] Load testing support.
 - [ ] AWS deploy.
 - [ ] `Docker` support.
-- [ ] `CMake` support.
+- [x] `CMake` support.
 - [ ] `C++` code best practices.
 
 ## 📦 Compile
