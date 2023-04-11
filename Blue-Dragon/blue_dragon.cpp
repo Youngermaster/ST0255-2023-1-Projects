@@ -213,11 +213,15 @@ void post_handler(int client_fd, const std::map<std::string, std::string> &heade
             send(client_fd, response.data(), response.size(), 0);
             LOG(response.data());
             return;
+        } else if (result == 0) {
+            // The connection has been closed by the client.
+            break;
         }
         bytes_received += result;
     }
 
     std::string body(buffer.begin(), buffer.begin() + bytes_received);
+
     // Log the received body
     LOG("Received body: ");
     LOG(body);
