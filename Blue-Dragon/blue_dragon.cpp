@@ -146,6 +146,9 @@ void HttpServer::accept_connections() {
             }
 
             auto handler_it = handlers.find({method, path});
+            if (handler_it == handlers.end()) {
+                handler_it = handlers.find({method, "*"});
+            }
             if (handler_it != handlers.end()) {
                 handler_it->second(client_fd, headers, path);
             } else {
@@ -162,9 +165,8 @@ void HttpServer::accept_connections() {
 int main() {
     HttpServer server("127.0.0.1", 8080);
 
-    server.on("GET", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        LOG(path);
-        std::string filename = path == "/" ? "index.html" : path;
+    server.on("GET", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+        std::string filename = path == "/" ? "index.html" : path.substr(1);
         std::ifstream file(filename, std::ios::binary);
 
         if (file.is_open()) {
@@ -209,7 +211,7 @@ int main() {
 
     server.start();
 
-    std::cout << "Server started at http://127.0.0.1:8080" << std::endl;
+    LOG("Server started at http://127.0.0.1:8080");
 
     while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
