@@ -1,4 +1,3 @@
-// main.cpp
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -115,7 +114,6 @@ void HttpServer::accept_connections() {
             std::string method, path, version;
             std::map<std::string, std::string> headers;
             std::string::size_type pos = request.find(" ");
-
             if (pos != std::string::npos) {
                 method = request.substr(0, pos);
                 request.erase(0, pos + 1);
@@ -185,10 +183,24 @@ int main() {
         }
     });
 
-    server.on("HEAD", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n";
-        send(client_fd, response.data(), response.size(), 0);
-        LOG(response.data());
+    server.on("HEAD", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
+        std::string filename = path == "/" ? "index.html" : path.substr(1);
+        std::ifstream file(filename, std::ios::binary);
+
+        if (file.is_open()) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            std::string body = buffer.str();
+            std::string content_type = get_content_type(filename);
+
+            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n";
+            send(client_fd, response.data(), response.size() - body.size(), 0);
+            LOG(response.data());
+        } else {
+            std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            LOG(response.data());
+            send(client_fd, response.data(), response.size(), 0);
+        }
     });
 
     server.on("POST", "/", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
