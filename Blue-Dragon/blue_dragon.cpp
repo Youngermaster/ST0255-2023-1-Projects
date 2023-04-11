@@ -207,7 +207,7 @@ void post_handler(int client_fd, const std::map<std::string, std::string> &heade
     std::vector<char> buffer(content_length);
     ssize_t bytes_received = 0;
     while (bytes_received < content_length) {
-        ssize_t result = recv(client_fd, buffer.data() + bytes_received, content_length - bytes_received, 0);
+        ssize_t result = read(client_fd, buffer.data() + bytes_received, content_length - bytes_received);
         if (result < 0) {
             std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
             send(client_fd, response.data(), response.size(), 0);
