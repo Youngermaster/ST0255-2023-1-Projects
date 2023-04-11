@@ -6,6 +6,23 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lorem</title>
+    <style>
+        .image-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .image-container img {
+            margin-bottom: 20px;
+        }
+
+        .image-row {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
 </head>
 
 <body>
@@ -15,10 +32,19 @@
         dignissimos ipsum eius dicta, corporis maiores. Earum accusamus reprehenderit, ea quisquam commodi voluptate
         quasi nesciunt?</p>
 
-    <h2>😂 Meme test</h2>
-    <img src="./image.png" alt="Image Meme" height="500">
-    <h2>🖼️ My wallpaper</h2>
-    <img src="./ThousandSunnySailing.png" alt="My current wallpaper" height="500">
+    <div class="image-row">
+        <div class="image-container">
+            <h2>😂 Meme test</h2>
+            <img src="./image.png" alt="Image Meme" height="500">
+        </div>
+
+        <div class="image-container">
+            <h2>🖼️ My wallpaper</h2>
+            <img src="./ThousandSunnySailing.png" alt="My current wallpaper" height="500">
+        </div>
+
+    </div>
+
 </body>
 
 </html>
