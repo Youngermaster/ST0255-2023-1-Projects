@@ -9,4 +9,4 @@
 
 echo "Compiling Blue Dragon Project..."
 
-g++ -pthread -std=c++17 -O3 -o webserver blue_dragon.cpp
+g++ -pthread -std=c++17 -O3 -o webserver blue_dragon.cpp http_server.h

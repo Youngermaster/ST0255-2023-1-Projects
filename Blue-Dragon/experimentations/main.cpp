@@ -20,7 +20,7 @@ void handle_request(int client_socket) {
     read(client_socket, buffer, BUFFER_SIZE);
 
     // Parse HTTP request
-    stringstream ss(buffer);
+    stringstream ss(buffer);                // Como parsea este metodo?
     string method, url, http_version;
     ss >> method >> url >> http_version;
 
