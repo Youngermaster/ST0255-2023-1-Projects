@@ -5,7 +5,7 @@ project(webserver)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(webserver blue_dragon.cpp)
+add_executable(webserver blue_dragon.cpp http_server.h)
 
 target_link_libraries(webserver pthread)
 
