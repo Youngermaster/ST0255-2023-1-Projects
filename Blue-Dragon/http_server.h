@@ -5,15 +5,11 @@
 #include <unistd.h> // Provides various POSIX operating system functions, such as close(), which is used for closing file descriptors, including sockets.
 
 // Include headers for C++ standard libraries used in the program
-#include <cstring> // Provides functions for working with C-style strings and memory manipulation, such as strcpy and memcpy.
-#include <fstream> // Provides classes for working with file streams, such as ifstream and ofstream.
 #include <functional> // Provides utilities for working with C++ functions and function objects, such as std::function and std::bind.
-#include <iostream> // Provides classes for working with input and output streams, such as std::cin, std::cout, and std::cerr.
 #include <map> // Provides the std::map container class, which is a sorted associative container that can store key-value pairs.
-#include <sstream> // Provides classes for working with string streams, such as std::stringstream, which can be used for parsing and formatting strings.
 #include <string> // Provides the std::string class, which is a versatile and efficient container for manipulating and storing strings.
+#include <iostream> // Provides classes for working with input and output streams, such as std::cin, std::cout, and std::cerr.
 #include <thread> // Provides the std::thread class and related functions for working with threads in C++.
-#include <vector> // Provides the std::vector container class, which is a dynamic array that can store and manage elements in a contiguous block of memory.
 
 // Include the header for the JSON library and define a shorter alias for the nlohmann::json namespace
 #include "json.hpp"
@@ -24,6 +20,7 @@ using json = nlohmann::json;
 #define LOG(x) std::cout << x << std::endl  // Macro for logging messages to the console
 #define BUFFER_SIZE 4096                    // Size of the buffer used for reading client requests and sending responses
 #define PORT 8080                           // Default port number for the server
+
 
 // Declare a helper function for getting the content type of a file based on its extension
 std::string get_content_type(const std::string &filename);
