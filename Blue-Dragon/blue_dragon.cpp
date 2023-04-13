@@ -168,8 +168,12 @@ void HttpServer::handle_client(int client_fd) {
     if (handler_it != handlers.end()) {
         handler_it->second(client_fd, headers, path);
     } else {
-        // If no handler is found, return a 404 Not Found response
-        std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+        // If no handler is found, return a 405 Method Not Allowed response
+        // The 405 Method Not Allowed error occurs between a client and a
+        // server. This message indicates that the web server has recognized a
+        // request from a web browser to access the website but rejects the
+        // specific HTTP method.
+        std::string response = "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n";
         send(client_fd, response.data(), response.size(), 0);
     }
 
@@ -264,9 +268,14 @@ int main(int argc, char const *argv[]) {
             std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
             send(client_fd, response.data(), response.size(), 0);
             LOG(response.data());
-        } else {
+        } else if (!file.is_open()) {
             // If the requested file is not found, return a 404 Not Found response
             std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            LOG(response.data());
+            send(client_fd, response.data(), response.size(), 0);
+        } else {
+            // 400 Bad Request response status code indicates that the server cannot or will not process the request due to something that is perceived to be a client error
+            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
             LOG(response.data());
             send(client_fd, response.data(), response.size(), 0);
         }
@@ -288,9 +297,14 @@ int main(int argc, char const *argv[]) {
             std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n";
             send(client_fd, response.data(), response.size() - body.size(), 0);
             LOG(response.data());
-        } else {
+        } else if (!file.is_open()) {
             // If the requested file is not found, return a 404 Not Found response
             std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+            LOG(response.data());
+            send(client_fd, response.data(), response.size(), 0);
+        } else {
+            // 400 Bad Request response status code indicates that the server cannot or will not process the request due to something that is perceived to be a client error
+            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
             LOG(response.data());
             send(client_fd, response.data(), response.size(), 0);
         }
