@@ -247,7 +247,7 @@ void post_handler(int client_fd, const std::map<std::string, std::string> &heade
 
 int main(int argc, char const *argv[]) {
     // Create an HTTP server instance with the specified address and port
-    HttpServer server("127.0.0.1", PORT);
+    HttpServer server("0.0.0.0", PORT);
 
     // Register a POST handler for the "/api/name" endpoint
     server.on("POST", "/api/name", post_handler);
