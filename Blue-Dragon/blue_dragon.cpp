@@ -6,6 +6,10 @@
 #include <sstream>  // Provides classes for working with string streams, such as std::stringstream, which can be used for parsing and formatting strings.
 #include <vector>   // Provides the std::vector container class, which is a dynamic array that can store and manage elements in a contiguous block of memory.
 
+// Include the header for the JSON library and define a shorter alias for the nlohmann::json namespace
+// #include "json.hpp"
+// using json = nlohmann::json;
+
 // POST handler for processing JSON data in the request body
 void post_handler(int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
     LOG("Entered POST handler");
@@ -70,17 +74,18 @@ void post_handler(int client_fd, const std::map<std::string, std::string> &heade
     // Process the POST request body
     try {
         // Parse the JSON from the request body
-        json request_json = json::parse(body);
-        std::string name = request_json["name"];
+        // json request_json = json::parse(body);
+        // std::string name = request_json["name"];
 
-        // Create a JSON object for the response
-        json response_json;
-        response_json["message"] = "Hello, " + name;
+        // // Create a JSON object for the response
+        // json response_json;
+        // response_json["message"] = "Hello, " + name;
 
-        // Convert the JSON object to a string
-        std::string response_body = response_json.dump();
+        // // Convert the JSON object to a string
+        // std::string response_body = response_json.dump();
         // Send a 200 OK response with the JSON object
-        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(response_body.size()) + "\r\n\r\n" + response_body;
+        // std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(response_body.size()) + "\r\n\r\n" + response_body;
+        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
         send(client_fd, response.data(), response.size(), 0);
         LOG(response.data());
     } catch (const std::exception &e) {

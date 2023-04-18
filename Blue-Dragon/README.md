@@ -10,8 +10,7 @@ for learning porpuses.
 - [x] `HEAD` support.
 - [ ] `POST` support.
 - [x] `200` status code response.
-- [ ] `400` status code response.
-    - [x] In some areas.
+- [x] `400` status code response.
 - [x] `404` status code response.
 - [x] Concurrency support.
 - [x] Logging support.
@@ -30,8 +29,8 @@ for learning porpuses.
     - [x] Basic `README.md` documentation.
     - [ ] `LaTex` documentation.
 - [x] Load testing support.
-- [ ] AWS deploy.
-- [ ] `Docker` support.
+- [x] AWS deploy.
+- [x] `Docker` support.
 - [x] `CMake` support.
 - [ ] `C++` code best practices.
 

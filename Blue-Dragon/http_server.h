@@ -11,10 +11,6 @@
 #include <string>      // Provides the std::string class, which is a versatile and efficient container for manipulating and storing strings.
 #include <thread>      // Provides the std::thread class and related functions for working with threads in C++.
 
-// Include the header for the JSON library and define a shorter alias for the nlohmann::json namespace
-#include "json.hpp"
-using json = nlohmann::json;
-
 // Define constants for the server configuration
 #define REQUEST_TIMEOUT 5                   // 5 seconds timeout for client requests
 #define LOG(x) std::cout << x << std::endl  // Macro for logging messages to the console
