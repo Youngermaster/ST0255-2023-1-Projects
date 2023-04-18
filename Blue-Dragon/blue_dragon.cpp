@@ -1,20 +1,17 @@
 #include "http_server.h"
 
 // Include headers for C++ standard libraries used in the program
-#include <cstring> // Provides functions for working with C-style strings and memory manipulation, such as strcpy and memcpy.
-#include <fstream> // Provides classes for working with file streams, such as ifstream and ofstream.
-#include <sstream> // Provides classes for working with string streams, such as std::stringstream, which can be used for parsing and formatting strings.
-#include <vector> // Provides the std::vector container class, which is a dynamic array that can store and manage elements in a contiguous block of memory.
-
+#include <cstring>  // Provides functions for working with C-style strings and memory manipulation, such as strcpy and memcpy.
+#include <fstream>  // Provides classes for working with file streams, such as ifstream and ofstream.
+#include <sstream>  // Provides classes for working with string streams, such as std::stringstream, which can be used for parsing and formatting strings.
+#include <vector>   // Provides the std::vector container class, which is a dynamic array that can store and manage elements in a contiguous block of memory.
 
 // POST handler for processing JSON data in the request body
 void post_handler(int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-    LOG("Entré en el POST");
+    LOG("Entered POST handler");
+
     auto content_length_it = headers.find("Content-Length");
-    ssize_t content_length = 0;
-    if (content_length_it != headers.end()) {
-        content_length = std::stoi(content_length_it->second);
-    } else {
+    if (content_length_it == headers.end()) {
         // If Content-Length is not provided, return a 411 Length Required response
         std::string response = "HTTP/1.1 411 Length Required\r\nContent-Length: 0\r\n\r\n";
         send(client_fd, response.data(), response.size(), 0);
@@ -22,20 +19,43 @@ void post_handler(int client_fd, const std::map<std::string, std::string> &heade
         return;
     }
 
-    // Create a buffer to receive the request body
+    ssize_t content_length = std::stoi(content_length_it->second);
     std::vector<char> buffer(content_length);
     ssize_t bytes_received = 0;
-    // Read the request body from the client connection
+
+    // Use a loop with a timeout to read the request body from the client connection
+    fd_set read_fds;
+    timeval timeout;
+    timeout.tv_sec = 5;  // 5 seconds timeout
+    timeout.tv_usec = 0;
+
     while (bytes_received < content_length) {
+        FD_ZERO(&read_fds);
+        FD_SET(client_fd, &read_fds);
+        LOG("Entré");
+
+        int select_result = select(client_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+        LOG(select_result);
+        if (select_result < 0) {
+            // Error occurred during select()
+            std::string response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
+            send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
+            return;
+        } else if (select_result == 0) {
+            // Timeout occurred
+            std::string response = "HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\n\r\n";
+            send(client_fd, response.data(), response.size(), 0);
+            LOG(response.data());
+            return;
+        }
+
         ssize_t result = read(client_fd, buffer.data() + bytes_received, content_length - bytes_received);
         if (result < 0) {
             std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
             send(client_fd, response.data(), response.size(), 0);
             LOG(response.data());
             return;
-        } else if (result == 0) {
-            // The connection has been closed by the client.
-            break;
         }
         bytes_received += result;
     }
@@ -140,7 +160,7 @@ int main(int argc, char const *argv[]) {
     server.start();
 
     // Log the server's address and port
-    LOG("Server started at http://127.0.0.1:8080");
+    LOG("Server started at http://0.0.0.0:8080");
 
     // Keep the main thread running indefinitely
     while (true) {

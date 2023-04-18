@@ -1,8 +1,6 @@
 #include "http_server.h"
 // Include the necessary headers for creating a socket, setting up network connections, and performing I/O operations
 
-
-
 // Function to determine the content type of a file based on its extension
 std::string get_content_type(const std::string &filename) {
     std::string ext = filename.substr(filename.find_last_of(".") + 1);
