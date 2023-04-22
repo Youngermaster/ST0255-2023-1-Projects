@@ -8,7 +8,7 @@ for learning porpuses.
 - [x] HTTP/1.1 support.
 - [x] `GET` support.
 - [x] `HEAD` support.
-- [ ] `POST` support.
+- [x] `POST` support.
 - [x] `200` status code response.
 - [x] `400` status code response.
 - [x] `404` status code response.
@@ -37,6 +37,7 @@ for learning porpuses.
 ## 📦 Compile
 
 ### 📤 Dependencies
+
 You need to go to download the [`nlohmann/json releases GitHub page`](https://github.com/nlohmann/json/releases) and download the `json.hpp`. Then copy the `json.hpp` where the `blue_dragon.cpp` file is.
 
 ### ▶️ Run

@@ -1,177 +1,195 @@
-#include "http_server.h"
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
-// Include headers for C++ standard libraries used in the program
-#include <cstring>  // Provides functions for working with C-style strings and memory manipulation, such as strcpy and memcpy.
-#include <fstream>  // Provides classes for working with file streams, such as ifstream and ofstream.
-#include <sstream>  // Provides classes for working with string streams, such as std::stringstream, which can be used for parsing and formatting strings.
-#include <vector>   // Provides the std::vector container class, which is a dynamic array that can store and manage elements in a contiguous block of memory.
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
-// Include the header for the JSON library and define a shorter alias for the nlohmann::json namespace
-// #include "json.hpp"
-// using json = nlohmann::json;
+bool debug_flag = false;         // Default value for DEBUG flag
+int port = 8080;                 // Default value for PORT
+std::string log_file;            // Default value is an empty string, which means no log file
+std::string static_files = ".";  // Default value for static files directory
 
-// POST handler for processing JSON data in the request body
-void post_handler(int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-    LOG("Entered POST handler");
-
-    auto content_length_it = headers.find("Content-Length");
-    if (content_length_it == headers.end()) {
-        // If Content-Length is not provided, return a 411 Length Required response
-        std::string response = "HTTP/1.1 411 Length Required\r\nContent-Length: 0\r\n\r\n";
-        send(client_fd, response.data(), response.size(), 0);
-        LOG(response.data());
-        return;
-    }
-
-    ssize_t content_length = std::stoi(content_length_it->second);
-    std::vector<char> buffer(content_length);
-    ssize_t bytes_received = 0;
-
-    // Use a loop with a timeout to read the request body from the client connection
-    fd_set read_fds;
-    timeval timeout;
-    timeout.tv_sec = 5;  // 5 seconds timeout
-    timeout.tv_usec = 0;
-
-    while (bytes_received < content_length) {
-        FD_ZERO(&read_fds);
-        FD_SET(client_fd, &read_fds);
-        LOG("Entré");
-
-        int select_result = select(client_fd + 1, &read_fds, nullptr, nullptr, &timeout);
-        LOG(select_result);
-        if (select_result < 0) {
-            // Error occurred during select()
-            std::string response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
-            send(client_fd, response.data(), response.size(), 0);
-            LOG(response.data());
-            return;
-        } else if (select_result == 0) {
-            // Timeout occurred
-            std::string response = "HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\n\r\n";
-            send(client_fd, response.data(), response.size(), 0);
-            LOG(response.data());
-            return;
+void log(const std::string& message, const std::string& log_file) {
+    if (debug_flag) {
+        if (!log_file.empty()) {
+            std::ofstream log_stream(log_file, std::ios_base::app);
+            log_stream << message << std::endl;
+        } else {
+            std::cout << message << std::endl;
         }
-
-        ssize_t result = read(client_fd, buffer.data() + bytes_received, content_length - bytes_received);
-        if (result < 0) {
-            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-            send(client_fd, response.data(), response.size(), 0);
-            LOG(response.data());
-            return;
-        }
-        bytes_received += result;
-    }
-
-    // Convert the received data into a string
-    std::string body(buffer.begin(), buffer.begin() + bytes_received);
-
-    // Log the received body
-    LOG("Received body: ");
-    LOG(body);
-
-    // Process the POST request body
-    try {
-        // Parse the JSON from the request body
-        // json request_json = json::parse(body);
-        // std::string name = request_json["name"];
-
-        // // Create a JSON object for the response
-        // json response_json;
-        // response_json["message"] = "Hello, " + name;
-
-        // // Convert the JSON object to a string
-        // std::string response_body = response_json.dump();
-        // Send a 200 OK response with the JSON object
-        // std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(response_body.size()) + "\r\n\r\n" + response_body;
-        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
-        send(client_fd, response.data(), response.size(), 0);
-        LOG(response.data());
-    } catch (const std::exception &e) {
-        // If an error occurs while processing the JSON, return a 400 Bad Request response
-        std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-        send(client_fd, response.data(), response.size(), 0);
-        LOG(response.data());
     }
 }
 
-int main(int argc, char const *argv[]) {
-    // Create an HTTP server instance with the specified address and port
-    HttpServer server("0.0.0.0", PORT);
+std::string get_content_type(const std::string& ext) {
+    if (ext == ".html") return "text/html";
+    if (ext == ".css") return "text/css";
+    if (ext == ".js") return "application/javascript";
+    if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+    if (ext == ".png") return "image/png";
+    if (ext == ".gif") return "image/gif";
+    return "application/octet-stream";
+}
 
-    // Register a POST handler for the "/api/name" endpoint
-    server.on("POST", "/api/name", post_handler);
+std::string get_file_extension(const std::string& path) {
+    std::size_t pos = path.find_last_of('.');
+    return (pos == std::string::npos) ? "" : path.substr(pos);
+}
 
-    // Register a catch-all GET handler
-    server.on("GET", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        std::string filename = path == "/" ? "index.html" : path.substr(1);
-        std::ifstream file(filename, std::ios::binary);
+std::map<std::string, std::string> parse_headers(const std::string& raw_headers) {
+    std::map<std::string, std::string> headers;
+    std::istringstream header_stream(raw_headers);
+    std::string line;
 
-        // If the requested file is found, return its content
-        if (file.is_open()) {
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            std::string body = buffer.str();
-            std::string content_type = get_content_type(filename);
+    while (std::getline(header_stream, line)) {
+        std::size_t colon_pos = line.find(':');
 
-            // Send a 200 OK response with the file content
-            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
-            send(client_fd, response.data(), response.size(), 0);
-            LOG(response.data());
-        } else if (!file.is_open()) {
-            // If the requested file is not found, return a 404 Not Found response
-            std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
-            LOG(response.data());
-            send(client_fd, response.data(), response.size(), 0);
-        } else {
-            // 400 Bad Request response status code indicates that the server cannot or will not process the request due to something that is perceived to be a client error
-            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-            LOG(response.data());
-            send(client_fd, response.data(), response.size(), 0);
+        if (colon_pos == std::string::npos) {
+            continue;
         }
-    });
 
-    // Register a catch-all HEAD handler
-    server.on("HEAD", "*", [](int client_fd, const std::map<std::string, std::string> &headers, const std::string &path) {
-        std::string filename = path == "/" ? "index.html" : path.substr(1);
-        std::ifstream file(filename, std::ios::binary);
+        std::string key = line.substr(0, colon_pos);
+        std::string value = line.substr(colon_pos + 2);
 
-        // If the requested file is found, return its metadata
-        if (file.is_open()) {
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            std::string body = buffer.str();
-            std::string content_type = get_content_type(filename);
-
-            // Send a 200 OK response with the file metadata (without the body)
-            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n";
-            send(client_fd, response.data(), response.size() - body.size(), 0);
-            LOG(response.data());
-        } else if (!file.is_open()) {
-            // If the requested file is not found, return a 404 Not Found response
-            std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
-            LOG(response.data());
-            send(client_fd, response.data(), response.size(), 0);
-        } else {
-            // 400 Bad Request response status code indicates that the server cannot or will not process the request due to something that is perceived to be a client error
-            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-            LOG(response.data());
-            send(client_fd, response.data(), response.size(), 0);
-        }
-    });
-
-    // Start the server
-    server.start();
-
-    // Log the server's address and port
-    LOG("Server started at http://0.0.0.0:8080");
-
-    // Keep the main thread running indefinitely
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        headers[key] = value;
     }
 
-    // Return 0 to indicate successful execution (this line will never be reached)
+    return headers;
+}
+
+void send_response(int client_socket, const std::string& status, const std::string& content_type, const std::string& content, bool include_body) {
+    std::ostringstream response;
+    response << "HTTP/1.1 " << status << "\r\n";
+    response << "Content-Type: " << content_type << "\r\n";
+    response << "Content-Length: " << content.size() << "\r\n";
+    response << "\r\n";
+
+    if (include_body) {
+        response << content;
+    }
+
+    send(client_socket, response.str().c_str(), response.str().size(), 0);
+    // Log the response
+    log("Sent response:\n" + response.str(), log_file);
+}
+
+void handle_client(int client_socket, const std::string& log_file, const std::string& static_files) {
+    char buffer[4096];
+    memset(buffer, 0, 4096);
+
+    int bytes_received = recv(client_socket, buffer, 4096, 0);
+    if (bytes_received <= 0) {
+        close(client_socket);
+        return;
+    }
+
+    std::istringstream request(buffer);
+    std::string request_type, path, http_version, raw_headers, line;
+    request >> request_type >> path >> http_version;
+
+    std::getline(request, line);  // Consume the remaining part of the first line
+    while (std::getline(request, line) && line != "\r") {
+        raw_headers += line + "\n";
+    }
+
+    if (request_type == "POST") {
+        auto headers = parse_headers(raw_headers);
+        int content_length = std::stoi(headers["Content-Length"]);
+
+        std::vector<char> post_data(content_length);
+        request.read(post_data.data(), content_length);
+        std::string post_data_str(post_data.begin(), post_data.end());
+
+        // Process the submitted form data as needed (e.g., store in a database)
+
+        // In this example, the submitted form data is simply echoed back to the client
+        send_response(client_socket, "200 OK", "text/plain", post_data_str, true);
+    } else if (request_type == "GET" || request_type == "HEAD") {
+        if (path == "/") {
+            path = "/index.html";
+        }
+
+        std::string file_path = static_files + path;
+        std::ifstream file(file_path, std::ios::binary);
+        std::string content;
+
+        if (file.is_open()) {
+            content = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            send_response(client_socket, "200 OK", get_content_type(get_file_extension(path)), content, request_type != "HEAD");
+        } else {
+            content = "File not found.";
+            send_response(client_socket, "404 Not Found", "text/plain", content, request_type != "HEAD");
+        }
+    } else {
+        std::string content = "Method not allowed.";
+        send_response(client_socket, "405 Method Not Allowed", "text/plain", content, request_type != "HEAD");
+    }
+
+    close(client_socket);
+}
+
+int main(int argc, char* argv[]) {
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+
+        if (arg == "--debug") {
+            debug_flag = true;
+        } else if (arg == "--logfile" && i + 1 < argc) {
+            log_file = argv[++i];
+        } else if (arg == "--port" && i + 1 < argc) {
+            port = std::stoi(argv[++i]);
+        } else if (arg == "--static-files" && i + 1 < argc) {
+            static_files = argv[++i];
+        } else {
+            std::cerr << "Unknown option: " << arg << std::endl;
+            return 1;
+        }
+    }
+
+    // Set the DEBUG flag and update the port
+    const bool DEBUG = debug_flag;
+    const int PORT = port;
+
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        std::cerr << "Can't create a socket" << std::endl;
+        return 1;
+    }
+
+    sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(server_socket, (sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        std::cerr << "Can't bind to IP/port" << std::endl;
+        return 2;
+    }
+
+    if (listen(server_socket, SOMAXCONN) == -1) {
+        std::cerr << "Can't listen for connections" << std::endl;
+        return 3;
+    }
+
+    while (true) {
+        sockaddr_in client_addr;
+        socklen_t client_addr_len = sizeof(client_addr);
+        int client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_addr_len);
+
+        if (client_socket == -1) {
+            std::cerr << "Can't accept client connection" << std::endl;
+            continue;
+        }
+
+        std::thread client_thread(handle_client, client_socket, log_file, static_files);
+        client_thread.detach();
+    }
+
     return 0;
 }

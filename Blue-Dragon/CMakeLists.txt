@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Creates an executable target 'blue_dragon_webserver' from the source file 'blue_dragon.cpp' and header file 'http_server.h'
-add_executable(blue_dragon_webserver blue_dragon.cpp http_server.cpp http_server.h)
+add_executable(blue_dragon_webserver blue_dragon.cpp)
 
 # Links the 'pthread' library to the 'blue_dragon_webserver' target
 target_link_libraries(blue_dragon_webserver pthread)
