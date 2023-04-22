@@ -13,9 +13,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Download the json.hpp file to the project root
-RUN wget https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
-
 # Create a build directory
 RUN mkdir build
 
@@ -28,4 +25,4 @@ RUN cd build && \
 EXPOSE 8080
 
 # Run the server with the working directory set explicitly
-CMD ["sh", "-c", "cd /app/build/ && ./blue_dragon_webserver"]
+CMD ["sh", "-c", "cd /app/build/ && ./blue_dragon_webserver --debug --logfile logs.txt --static-files ./public --port 8080"]
