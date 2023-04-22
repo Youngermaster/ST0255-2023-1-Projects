@@ -11,7 +11,14 @@
 #include <thread>
 #include <vector>
 
-const int PORT = 8080;
+const int PORT = 6969;
+const bool DEBUG = true;  // Set to true to enable logging, false to disable
+
+void log(const std::string& message) {
+    if (DEBUG) {
+        std::cout << message << std::endl;
+    }
+}
 
 std::string get_content_type(const std::string& ext) {
     if (ext == ".html") return "text/html";
@@ -61,6 +68,8 @@ void send_response(int client_socket, const std::string& status, const std::stri
     }
 
     send(client_socket, response.str().c_str(), response.str().size(), 0);
+    // Log the response
+    log("Sent response:\n" + response.str());
 }
 
 void handle_client(int client_socket) {
