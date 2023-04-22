@@ -11,12 +11,20 @@
 #include <thread>
 #include <vector>
 
-const int PORT = 6969;
-const bool DEBUG = true;  // Set to true to enable logging, false to disable
+bool debug_flag = false;  // Default value for DEBUG flag
+int port = 8080;          // Default value for PORT
+std::string log_file;     // Default value is an empty string, which means no log file
 
-void log(const std::string& message) {
-    if (DEBUG) {
-        std::cout << message << std::endl;
+#include <fstream>
+
+void log(const std::string& message, const std::string& log_file) {
+    if (debug_flag) {
+        if (!log_file.empty()) {
+            std::ofstream log_stream(log_file, std::ios_base::app);
+            log_stream << message << std::endl;
+        } else {
+            std::cout << message << std::endl;
+        }
     }
 }
 
@@ -69,7 +77,7 @@ void send_response(int client_socket, const std::string& status, const std::stri
 
     send(client_socket, response.str().c_str(), response.str().size(), 0);
     // Log the response
-    log("Sent response:\n" + response.str());
+    log("Sent response:\n" + response.str(), log_file);
 }
 
 void handle_client(int client_socket) {
@@ -126,7 +134,26 @@ void handle_client(int client_socket) {
     close(client_socket);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+
+        if (arg == "--debug") {
+            debug_flag = true;
+        } else if (arg == "--logfile" && i + 1 < argc) {
+            log_file = argv[++i];
+        } else if (arg == "--port" && i + 1 < argc) {
+            port = std::stoi(argv[++i]);
+        } else {
+            std::cerr << "Unknown option: " << arg << std::endl;
+            return 1;
+        }
+    }
+
+    // Set the DEBUG flag and update the port
+    const bool DEBUG = debug_flag;
+    const int PORT = port;
+
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket == -1) {
         std::cerr << "Can't create a socket" << std::endl;
