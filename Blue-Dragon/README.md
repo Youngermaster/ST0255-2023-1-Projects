@@ -15,7 +15,7 @@ for learning porpuses.
 - [x] Concurrency support.
 - [x] Logging support.
     - [ ] could be improved adding colors.
-- [ ] Command line support.
+- [x] Command line support.
 - [x] Endpoints testing with `curl`.
     - [x] `curl -i http://127.0.0.1:8080/public/index.html`
     - [x] `curl -I http://127.0.0.1:8080/public/index.html`
