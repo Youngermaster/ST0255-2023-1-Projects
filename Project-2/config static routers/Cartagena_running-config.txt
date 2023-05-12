@@ -1,0 +1,89 @@
+!
+version 12.4
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+no ip cef
+no ipv6 cef
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface FastEthernet0/0
+ ip address 132.18.160.1 255.255.224.0
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/1
+ no ip address
+ duplex auto
+ speed auto
+ shutdown
+!
+interface Serial0/0/0
+ ip address 132.18.224.21 255.255.255.252
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+ip classless
+ip route 132.18.192.0 255.255.224.0 132.18.224.22 
+ip route 132.18.224.0 255.255.255.252 132.18.224.22 
+ip route 132.18.0.0 255.255.224.0 132.18.224.22 
+ip route 132.18.224.8 255.255.255.252 132.18.224.22 
+ip route 132.18.96.0 255.255.224.0 132.18.224.22 
+ip route 132.18.224.16 255.255.255.252 132.18.224.22 
+ip route 132.18.128.0 255.255.224.0 132.18.224.22 
+ip route 132.18.224.4 255.255.255.252 132.18.224.22 
+ip route 132.18.32.0 255.255.224.0 132.18.224.22 
+ip route 132.18.224.12 255.255.255.252 132.18.224.22 
+ip route 132.18.64.0 255.255.224.0 132.18.224.22 
+ip route 128.96.0.0 255.255.224.0 132.18.224.22 
+ip route 128.96.224.0 255.255.255.252 132.18.224.22 
+!
+ip flow-export version 9
+!
+!
+!
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
